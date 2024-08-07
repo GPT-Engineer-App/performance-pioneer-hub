@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
-import { Cat, Heart, Info, Paw, Star, Moon, Sun } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Cat, Heart, Info, Paw, Star, Moon, Sun, ChevronRight } from "lucide-react";
+import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 const catBreeds = [
   { name: "Siamese", origin: "Thailand", temperament: "Vocal, Affectionate, Intelligent", image: "https://upload.wikimedia.org/wikipedia/commons/2/25/Siam_lilacpoint.jpg" },
@@ -39,11 +42,36 @@ const CatFact = ({ fact }) => (
   </motion.div>
 );
 
+const quizQuestions = [
+  {
+    question: "What is a group of cats called?",
+    options: ["A pride", "A clowder", "A pack", "A colony"],
+    correctAnswer: "A clowder"
+  },
+  {
+    question: "How many vocalizations can a cat make?",
+    options: ["Over 10", "Over 20", "Over 30", "Over 40"],
+    correctAnswer: "Over 20"
+  },
+  {
+    question: "Which cat breed is known for its folded ears?",
+    options: ["Persian", "Siamese", "Scottish Fold", "Maine Coon"],
+    correctAnswer: "Scottish Fold"
+  }
+];
+
 const Index = () => {
   const [likes, setLikes] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [currentFact, setCurrentFact] = useState(0);
+  const [quizStep, setQuizStep] = useState(0);
+  const [quizScore, setQuizScore] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState("");
+  const { scrollYProgress } = useScroll();
   const { toast } = useToast();
+
+  const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  const opacity = useTransform(scrollYProgress, [0, 0.5, 1], [1, 0.5, 0]);
 
   const catFacts = [
     "Cats sleep for about 70% of their lives.",
@@ -73,9 +101,33 @@ const Index = () => {
     document.documentElement.classList.toggle('dark');
   };
 
+  const handleQuizAnswer = () => {
+    if (selectedAnswer === quizQuestions[quizStep].correctAnswer) {
+      setQuizScore(quizScore + 1);
+    }
+    setQuizStep(quizStep + 1);
+    setSelectedAnswer("");
+  };
+
+  const resetQuiz = () => {
+    setQuizStep(0);
+    setQuizScore(0);
+    setSelectedAnswer("");
+  };
+
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-b from-purple-100 to-pink-100'} p-8 transition-colors duration-300`}>
-      <div className="max-w-4xl mx-auto">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gradient-to-b from-purple-100 to-pink-100'} transition-colors duration-300`}>
+      <motion.div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: "url('https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80')",
+          backgroundPosition: "center",
+          backgroundSize: "cover",
+          y: backgroundY,
+          opacity
+        }}
+      />
+      <div className="relative z-10 max-w-4xl mx-auto p-8">
         <div className="flex justify-between items-center mb-6">
           <motion.h1 
             className="text-5xl font-bold flex items-center justify-center text-purple-800 dark:text-purple-300"
@@ -91,15 +143,23 @@ const Index = () => {
         </div>
         
         <motion.div 
-          className="relative mb-8"
+          className="relative mb-8 overflow-hidden rounded-lg"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <img
+          <motion.img
             src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/1200px-Cat03.jpg"
             alt="A majestic cat"
-            className="mx-auto object-cover w-full h-[500px] rounded-lg shadow-2xl"
+            className="mx-auto object-cover w-full h-[500px]"
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.3 }}
+          />
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.5 }}
+            transition={{ duration: 0.5 }}
           />
           <Button 
             className="absolute bottom-4 right-4 bg-pink-500 hover:bg-pink-600"
@@ -114,10 +174,11 @@ const Index = () => {
         </AnimatePresence>
 
         <Tabs defaultValue="about" className="mb-8">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="about">About Cats</TabsTrigger>
             <TabsTrigger value="characteristics">Characteristics</TabsTrigger>
             <TabsTrigger value="breeds">Popular Breeds</TabsTrigger>
+            <TabsTrigger value="quiz">Cat Quiz</TabsTrigger>
           </TabsList>
           <TabsContent value="about">
             <Card>
@@ -159,13 +220,56 @@ const Index = () => {
                   <CarouselContent>
                     {catBreeds.map((breed, index) => (
                       <CarouselItem key={index}>
-                        <CatCard {...breed} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 50 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, delay: index * 0.1 }}
+                        >
+                          <CatCard {...breed} />
+                        </motion.div>
                       </CarouselItem>
                     ))}
                   </CarouselContent>
                   <CarouselPrevious />
                   <CarouselNext />
                 </Carousel>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="quiz">
+            <Card>
+              <CardHeader>
+                <CardTitle>Cat Quiz</CardTitle>
+                <CardDescription>Test your feline knowledge</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {quizStep < quizQuestions.length ? (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">{quizQuestions[quizStep].question}</h3>
+                    <RadioGroup value={selectedAnswer} onValueChange={setSelectedAnswer}>
+                      {quizQuestions[quizStep].options.map((option, index) => (
+                        <div key={index} className="flex items-center space-x-2 mb-2">
+                          <RadioGroupItem value={option} id={`option-${index}`} />
+                          <Label htmlFor={`option-${index}`}>{option}</Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                    <Button 
+                      onClick={handleQuizAnswer} 
+                      disabled={!selectedAnswer}
+                      className="mt-4"
+                    >
+                      Next <ChevronRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <h3 className="text-2xl font-bold mb-4">Quiz Complete!</h3>
+                    <p className="text-lg mb-4">Your score: {quizScore} out of {quizQuestions.length}</p>
+                    <Button onClick={resetQuiz}>Try Again</Button>
+                  </div>
+                )}
+                <Progress value={(quizStep / quizQuestions.length) * 100} className="mt-4" />
               </CardContent>
             </Card>
           </TabsContent>
